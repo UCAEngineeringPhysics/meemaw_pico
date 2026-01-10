@@ -1,0 +1,85 @@
+from encoded_motor import EncodedMotor
+from machine import Pin, Timer
+from math import pi
+
+
+class SentientWheel(EncodedMotor):
+    def __init__(self, driver_ids: list | tuple, encoder_ids: list | tuple) -> None:
+        super().__init__(driver_ids, encoder_ids)
+        # Constants
+        self.wheel_radius = 0.0337  # m
+        self.gear_ratio = 46.8512  # pololu 4805
+        self.cpr = 48  # CPR = PPR * 4
+        self.meas_freq = 100  # Hz
+        # Velocity measuring timer
+        self.vel_meas_timer = Timer(
+            freq=self.meas_freq,
+            mode=Timer.PERIODIC,
+            callback=self.measure_velocity,
+        )
+        # Variables
+        self.encoder_counts = 0
+        self.prev_counts = 0
+        self.meas_ang_vel = 0.0
+        self.meas_lin_vel = 0.0
+
+    def measure_velocity(self, timer):
+        curr_counts = self.encoder_counts
+        delta_counts = curr_counts - self.prev_counts
+        self.prev_counts = curr_counts  # UPDATE previous counts
+        counts_per_sec = delta_counts * self.meas_freq  # delta_c / delta_t
+        orig_rev_per_sec = counts_per_sec / self.cpr
+        orig_rad_per_sec = orig_rev_per_sec * 2 * pi  # original motor shaft velocity
+        self.meas_ang_vel = orig_rad_per_sec / self.gear_ratio
+        self.meas_lin_vel = self.meas_ang_vel * self.wheel_radius
+
+
+# TEST
+if __name__ == "__main__":  # Test only the encoder part
+    from time import sleep
+
+    # SETUP
+    sw = SentientWheel(
+        driver_ids=(16, 17, 18),
+        encoder_ids=(19, 20),
+    )  # left wheel
+    # sw = SentientWheel(
+    #     driver_ids=(15, 14, 13),
+    #     encoder_ids=(12, 11),
+    # )  # right wheel
+
+    # LOOP
+    sw.awaken()  # enable motor driver
+    # Forward ramp up and down
+    for i in range(100):
+        sw.forward((i + 1) / 100)
+        print(
+            f"Wheel's angular velocity={sw.meas_ang_vel}, linear velocity={sw.meas_lin_vel}"
+        )
+        sleep(4 / 100)  # 4 seconds to ramp up
+    for i in reversed(range(100)):
+        sw.forward((i + 1) / 100)
+        print(
+            f"Wheel's angular velocity={sw.meas_ang_vel}, linear velocity={sw.meas_lin_vel}"
+        )
+        sleep(4 / 100)  # 4 seconds to ramp down
+    # Backward ramp up and down
+    for i in range(100):
+        sw.backward((i + 1) / 100)
+        print(
+            f"Wheel's angular velocity={sw.meas_ang_vel}, linear velocity={sw.meas_lin_vel}"
+        )
+        sleep(4 / 100)  # 4 seconds to ramp up
+    for i in reversed(range(100)):
+        sw.backward((i + 1) / 100)
+        print(
+            f"Wheel's angular velocity={sw.meas_ang_vel}, linear velocity={sw.meas_lin_vel}"
+        )
+        sleep(4 / 100)  # 4 seconds to ramp down
+
+    # Terminate
+    sw.stop()
+    sleep(0.5)
+    print("wheel stopped.")
+    sw.snooze()  # disable motor driver
+    print("motor driver disabled.")
