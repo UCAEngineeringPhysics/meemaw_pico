@@ -9,11 +9,13 @@ SERIAL_PORT = "/dev/ttyACM0"
 BAUD_RATE = 115200
 # BAUD_RATE = 921600
 usb_messenger = serial.Serial(
-    SERIAL_PORT, BAUD_RATE, timeout=0.05
-)  # set error recovery time half of the pico talker's period
+    SERIAL_PORT, BAUD_RATE, timeout=0.01
+)  # set error recovery duration half the pico talker's period
 print(f"Connected to {SERIAL_PORT}")
 sleep(2)  # Wait briefly for the connection to stabilize
 # Variables
+tlvs = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
+targ_lin_vels = tlvs + list(reversed(tlvs))
 msg_id = 0
 last_stamp = time()
 print("Starting communication... Press Ctrl+C to stop.")
@@ -24,7 +26,7 @@ try:
         # Transmit data (TX)
         current_stamp = time()
         if (current_stamp - last_stamp) >= 0.5:  # 2Hz TX
-            msg = f"[RPi, {current_stamp:.2f}]: Aloha, {msg_id}\n"
+            msg = f"{targ_lin_vels[msg_id%16]},0.0\n"
             # Encode string to bytes and send
             usb_messenger.write(msg.encode("utf-8"))
             msg_id += 1

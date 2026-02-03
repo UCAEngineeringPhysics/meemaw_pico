@@ -1,41 +1,42 @@
-"""
-Rename this script to main.py, then upload to the pico board.
-"""
-
 import sys
+from utime import time, ticks_us, ticks_diff
 import select
-from diff_drive_controller import DiffDriveController
 from machine import freq
-from utime import ticks_us
+from diff_drive_controller import DiffDriveController
 
 # SETUP
 # Overclock
-freq(240_000_000)  # Pico 2 original: 150_000_000
+freq(240_000_000)  # Pico2 original: 150_000_000
 # Instantiate robot
-diff_driver = DiffDriveController(
-    right_wheel_ids=((15, 13, 14), (10, 11)),
-    left_wheel_ids=((16, 18, 17), (20, 19)),
+mobile_base = DiffDriveController(
+    left_wheel_ids=((16, 17, 18), (19, 20)),
+    right_wheel_ids=((15, 14, 13), (12, 11)),
 )
-# Create a poll to receive messages from host machine
-cmd_vel_listener = select.poll()
-cmd_vel_listener.register(sys.stdin, select.POLLIN)
-event = cmd_vel_listener.poll()
-target_lin_vel, target_ang_vel = 0.0, 0.0
-tic = ticks_us()
+mobile_base.awaken()
+pico_messenger = select.poll()  # create a poll object 
+pico_messenger.register(sys.stdin, select.POLLIN) # peek at serial port input
+# Constants
+tx_period_us = 16_667  # 60Hz
+# Variables
+targ_lin_vel, targ_ang_vel = 0.0, 0.0
+last_us = ticks_us()
+print("Pico is ready...")  # debug
 
 # LOOP
 while True:
-    for msg, _ in event:
-        buffer = msg.readline().strip().split(",")
-        # print(f"{diff_driver.lin_vel},{diff_driver.ang_vel}")
-        if len(buffer) == 2:
-            target_lin_vel = float(buffer[0])
-            target_ang_vel = float(buffer[1])
-            diff_driver.set_vels(target_lin_vel, target_ang_vel)
-    toc = ticks_us()
-    if toc - tic >= 10_000:
-        meas_lin_vel, meas_ang_vel = diff_driver.get_vels()
-        out_msg = f"{meas_lin_vel}, {meas_ang_vel}\n"
-        #         out_msg = "PICO\n"
-        sys.stdout.write(out_msg)
-        tic = ticks_us()
+    # Transmit data (TX)
+    now_us = ticks_us()
+    if ticks_diff(now_us, last_us) >= tx_period_us:
+        meas_lin_vel, meas_ang_vel = mobile_base.get_vels()
+        out_msg = f"{meas_lin_vel},{meas_ang_vel}\n"
+        sys.stdout.write(out_msg)  # main.py will send this to computer
+        last_us = now_us  # update last time stamp
+    # Receive data (RX)
+    is_waiting = pico_messenger.poll(0)  # check data in USB, sample rate=50Hz
+    if is_waiting:
+        in_msg = sys.stdin.readline().strip()  # take out whitespaces
+        targ_vels = in_msg.split(",")
+        if len(targ_vels) == 2:
+            targ_lin_vel = float(targ_vels[0])
+            targ_ang_vel = float(targ_vels[1])
+            mobile_base.set_vels(targ_lin_vel, targ_ang_vel)
