@@ -11,6 +11,13 @@ class MPU6050:
             bytes([0x00]),  # data
         )  # wake up sensor
         # TODO: DHPF configuration
+        # Variables
+        self.lin_acc_x = 0.0
+        self.lin_acc_y = 0.0
+        self.lin_acc_z = 0.0
+        self.ang_vel_x = 0.0
+        self.ang_vel_y = 0.0
+        self.ang_vel_z = 0.0
 
     def read_data(self):
         """
@@ -18,28 +25,41 @@ class MPU6050:
         Acc_X, Acc_Y, Acc_Z, Temp, Gyro_X, Gyro_Y, Gyro_Z are stored in contiguous registers.
         To read'em all, grab 14 bytes starting at the ACCEL_XOUT_H register: 0x3B.
         """
+
+        def process_raw(data, id, scale):
+            """
+            Args:
+                data: a list contains n words(2 bytes) of sensor data
+                id: 0 to n-1
+                scale: a constant coefficient scaling raw data.
+                       accelerometer: 16384 * 9.80665 per g
+                       gyro: 131 per deg/s
+                TODO: use radians
+            Returns:
+                value: human readible value in m/s^2 or deg/s
+            """
+
+            if data[id] > 32767:
+                value = (data[id] - 65535) / scale
+            else:
+                value = data[0] / scale
+
+            return value
+
         words = self.i2c.readfrom_mem(
             self.i2c_addr,
             0x3B,  # ACCEL_XOUT_H register address
             14,  # number of bytes
         )  # retrieve raw sensor data in bytes
-
+        # Preprocess bytes, split 2 bytes as a group
         data = [words[i] << 8 | words[i + 1] for i in range(0, len(words), 2)]
-        lin_acc_x = (data[0] - 65535) / 16384 if data[0] > 32767 else data[0] / 16384
-        lin_acc_y = (data[1] - 65535) / 16384 if data[1] > 32767 else data[1] / 16384
-        lin_acc_z = (data[2] - 65535) / 16384 if data[2] > 32767 else data[2] / 16384
-        ang_vel_x = (data[4] - 65535) / 16384 if data[4] > 32767 else data[4] / 16384
-        ang_vel_y = (data[5] - 65535) / 16384 if data[5] > 32767 else data[5] / 16384
-        ang_vel_z = (data[6] - 65535) / 16384 if data[6] > 32767 else data[6] / 16384
-
-        return {
-            "lin_acc_x": lin_acc_x,
-            "lin_acc_y": lin_acc_y,
-            "lin_acc_z": lin_acc_z,
-            "ang_vel_x": ang_vel_x,
-            "ang_vel_y": ang_vel_y,
-            "ang_vel_z": ang_vel_z,
-        }
+        # Calculate human readibles
+        self.lin_acc_x = process_raw(data, 0, 16384 * 9.80665)
+        self.lin_acc_y = process_raw(data, 1, 16384 * 9.80665)
+        self.lin_acc_z = process_raw(data, 2, 16384 * 9.80665)
+        self.ang_vel_x = process_raw(data, 4, 131)
+        self.ang_vel_y = process_raw(data, 5, 131)
+        self.ang_vel_z = process_raw(data, 6, 131)
 
 
 if __name__ == "__main__":
@@ -55,15 +75,14 @@ if __name__ == "__main__":
     # LOOP
     while True:
         stamp = ticks_ms()
-        data = sensor.read_data()
-
+        sensor.read_data()
+        # Log
         print(f"[Pico, {stamp}]:")
         print("---")
         print(
-            f"acc_x={data['lin_acc_x']} m/s^2, acc_y={data['lin_acc_y']} m/s^2, acc_z={data['lin_acc_z']} m/s^2"
+            f"acc_x={sensor.lin_acc_x} m/s^2, acc_y={sensor.lin_acc_y} m/s^2, acc_z={sensor.lin_acc_z} m/s^2"
         )
         print(
-            f"angv_x={data['ang_vel_x']} deg/s, angv_y={data['ang_vel_y']} deg/s, angv_z={data['ang_vel_z']} deg/s"
+            f"angv_x={sensor.ang_vel_x} deg/s, angv_y={sensor.ang_vel_y} deg/s, angv_z={sensor.ang_vel_z} deg/s"
         )
-
-        sleep_ms(16)  # Approx 60Hz
+        sleep_ms(50)  # 20Hz
