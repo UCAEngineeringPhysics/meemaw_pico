@@ -1,3 +1,7 @@
+"""
+Rename this file to main.py
+"""
+
 import sys
 from utime import time, ticks_us, ticks_diff
 import select
