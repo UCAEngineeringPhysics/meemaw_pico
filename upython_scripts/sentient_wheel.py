@@ -7,9 +7,9 @@ class SentientWheel(EncodedMotor):
     def __init__(self, driver_ids: list | tuple, encoder_ids: list | tuple) -> None:
         super().__init__(driver_ids, encoder_ids)
         # Constants
-        self.wheel_radius = 0.0337  # m
-        self.gear_ratio = 46.8512  # pololu 4805
-        self.cpr = 48  # CPR = PPR * 4
+        self.wheel_radius = 0.04  # m
+        self.gear_ratio = 102.0833  # pololu 4695
+        self.cpr = 64  # CPR = PPR * 4
         self.meas_freq = 100  # Hz
         # Velocity measuring timer
         self.vel_meas_timer = Timer(
@@ -39,14 +39,14 @@ if __name__ == "__main__":  # Test only the encoder part
     from time import sleep
 
     # SETUP
-    sw = SentientWheel(
-        driver_ids=(16, 17, 18),
-        encoder_ids=(19, 20),
-    )  # left wheel
     # sw = SentientWheel(
-    #     driver_ids=(15, 14, 13),
-    #     encoder_ids=(12, 11),
-    # )  # right wheel
+    #     driver_ids=(16, 17, 18),
+    #     encoder_ids=(19, 20),
+    # )  # left wheel
+    sw = SentientWheel(
+        driver_ids=(15, 14, 13),
+        encoder_ids=(12, 11),
+    )  # right wheel
 
     # LOOP
     sw.awaken()  # enable motor driver

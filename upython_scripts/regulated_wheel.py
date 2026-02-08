@@ -76,7 +76,7 @@ if __name__ == "__main__":
     regw.awaken()
     for i in range(100):
         if i == 25:  # step up @ t=0.5s
-            regw.set_wheel_velocity(0.9)
+            regw.set_wheel_velocity(-0.1)
         elif i == 80:  # step down @ t=1.6s
             regw.set_wheel_velocity(0.0)
         print(
