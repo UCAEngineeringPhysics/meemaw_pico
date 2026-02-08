@@ -63,20 +63,20 @@ if __name__ == "__main__":
     from utime import sleep
     from machine import Pin
 
-    # regw = RegulatedWheel(
-    #     driver_ids=(16, 17, 18),
-    #     encoder_ids=(19, 20),
-    # )  # left wheel
     regw = RegulatedWheel(
-        driver_ids=(15, 14, 13),
-        encoder_ids=(12, 11),
-    )  # right wheel
+        driver_ids=(16, 17, 18),
+        encoder_ids=(19, 20),
+    )  # left wheel
+    # regw = RegulatedWheel(
+    #     driver_ids=(15, 14, 13),
+    #     encoder_ids=(12, 11),
+    # )  # right wheel
 
     # LOOP
     regw.awaken()
     for i in range(100):
         if i == 25:  # step up @ t=0.5s
-            regw.set_wheel_velocity(-0.1)
+            regw.set_wheel_velocity(-0.25)
         elif i == 80:  # step down @ t=1.6s
             regw.set_wheel_velocity(0.0)
         print(
